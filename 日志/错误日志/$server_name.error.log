@@ -1,2 +1,0 @@
-2026/03/25 21:10:56 [crit] 1039157#1039157: *1 connect() to unix:/var/run/php/php8.2-fpm.sock failed (2: No such file or directory) while connecting to upstream, client: ::1, server: _, request: "HEAD / HTTP/1.1", upstream: "fastcgi://unix:/var/run/php/php8.2-fpm.sock:", host: "localhost"
-2026/03/25 21:11:11 [crit] 1039157#1039157: *3 connect() to unix:/var/run/php/php8.2-fpm.sock failed (2: No such file or directory) while connecting to upstream, client: ::1, server: _, request: "GET / HTTP/1.1", upstream: "fastcgi://unix:/var/run/php/php8.2-fpm.sock:", host: "localhost"

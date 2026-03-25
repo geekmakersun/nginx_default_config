@@ -1,1 +1,2 @@
-日志/访问日志/_.access.log
+日志/错误日志/*.error.log
+日志/访问日志/*.access.log
