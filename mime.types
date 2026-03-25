@@ -6,7 +6,6 @@ types {
     image/jpeg                            jpeg jpg;
     application/javascript                js;
     application/json                      json;
-    application/xml                       xml;
     application/pdf                       pdf;
     image/png                             png;
     image/tiff                            tif tiff;
