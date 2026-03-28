@@ -2,16 +2,16 @@
 
 set -e
 
-echo "Testing nginx configuration..."
+echo "正在测试 nginx 配置..."
 if ! nginx -t; then
-    echo "Error: nginx configuration test failed"
+    echo "错误: nginx 配置测试失败"
     exit 1
 fi
 
-echo "Reloading nginx..."
+echo "正在重新加载 nginx..."
 if nginx -s reload; then
-    echo "nginx reloaded successfully"
+    echo "nginx 重新加载成功"
 else
-    echo "Error: failed to reload nginx, trying restart..."
+    echo "错误: 重新加载 nginx 失败，尝试重启..."
     systemctl restart nginx || service nginx restart || /etc/init.d/nginx restart
 fi
