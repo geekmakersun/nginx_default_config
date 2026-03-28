@@ -3,6 +3,7 @@
 # 部署SSL证书脚本 - 为每个站点创建独立的HTTPS证书并配置自动续期
 # 重要提示：每个站点使用完全独立的证书，不共享证书
 # 证书存储位置: /etc/nginx/SSL证书/域名/ (支持版本管理)
+# 注意：脚本不再自动安装依赖，请提前安装certbot及相关插件
 
 set -euo pipefail
 
@@ -1007,8 +1008,7 @@ main() {
         exit 0
     fi
     
-    # 检查并安装依赖
-    check_and_install_deps
+    # 依赖需提前安装，脚本不再自动处理
     
     # 检查速率限制
     check_rate_limit "$DOMAIN"
