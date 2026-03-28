@@ -14,8 +14,8 @@ exec 1> >(tee -a "$LOG_FILE")
 exec 2> >(tee -a "$LOG_FILE" >&2)
 
 # 配置
-ALIYUN_AK_FILE="/etc/nginx/aliyunak.conf"
-CLOUDFLARE_CONF_FILE="/etc/nginx/cloudflare.conf"
+ALIYUN_AK_FILE="/root/aliyunak.conf"
+CLOUDFLARE_CONF_FILE="/root/cloudflare.conf"
 CERT_STORAGE_BASE="/etc/nginx/SSL证书"
 CERTBOT_ORIG_BASE="/etc/letsencrypt/archive"
 
@@ -99,6 +99,19 @@ run_with_retry() {
 # 检查命令是否存在
 check_command() {
     command -v "$1" &> /dev/null
+}
+
+# 安装DNS插件
+install_dns_plugin() {
+    local plugin_type="$1"
+    local package_name="certbot-dns-$plugin_type"
+
+    # 检查插件是否已安装
+    if ! check_dns_plugin "dns-$plugin_type"; then
+        error_exit "$plugin_type DNS 插件未安装，请先运行 安装Certbot插件.sh 安装插件"
+    fi
+
+    log_info "✓ $plugin_type DNS 插件已安装并可用"
 }
 
 # 初始化速率限制目录
@@ -296,127 +309,10 @@ if not has_attempts:
     echo ""
 }
 
-# 获取 pip 版本并确定是否需要 --break-system-packages
-get_pip_install_args() {
-    local pip_version
-    pip_version=$(pip3 --version | grep -oP '\d+\.\d+' | head -1)
-    local major_version=$(echo "$pip_version" | cut -d. -f1)
-    local minor_version=$(echo "$pip_version" | cut -d. -f2)
-    
-    # pip 23.0+ 支持 --break-system-packages
-    if [ "$major_version" -gt 23 ] || ([ "$major_version" -eq 23 ] && [ "$minor_version" -ge 0 ]); then
-        echo "--break-system-packages"
-    else
-        echo ""
-    fi
-}
-
-# 安装 Python 包（带重试和版本适配）
-install_python_package() {
-    local package="$1"
-    local max_retries="${2:-$MAX_RETRIES}"
-    
-    log_info "安装 Python 包: $package"
-    
-    local pip_args
-    pip_args=$(get_pip_install_args)
-    
-    for ((i=1; i<=max_retries; i++)); do
-        log_info "尝试 $i/$max_retries 安装 $package"
-        
-        if [ -n "$pip_args" ]; then
-            if sudo python3 -m pip install "$package" "$pip_args" 2>/dev/null; then
-                log_info "✓ $package 安装成功"
-                return 0
-            fi
-        else
-            if sudo python3 -m pip install "$package" 2>/dev/null; then
-                log_info "✓ $package 安装成功"
-                return 0
-            fi
-        fi
-        
-        log_warn "$package 安装失败，等待重试..."
-        sleep $RETRY_DELAY
-    done
-    
-    return 1
-}
-
-# 检查并安装系统依赖
-check_and_install_deps() {
-    log_info "检查系统依赖..."
-    
-    local deps_to_install=()
-    
-    if ! check_command certbot; then
-        deps_to_install+=("certbot" "python3-certbot-nginx")
-    fi
-    
-    if ! check_command pip3; then
-        deps_to_install+=("python3-pip")
-    fi
-    
-    if [ ${#deps_to_install[@]} -gt 0 ]; then
-        log_info "安装依赖: ${deps_to_install[*]}"
-        run_with_retry "sudo apt-get update && sudo apt-get install -y ${deps_to_install[*]}" "安装系统依赖" 2 10
-    else
-        log_info "所有系统依赖已满足"
-    fi
-}
-
 # 检查 DNS 插件是否已安装
 check_dns_plugin() {
     local plugin_name="$1"
     certbot plugins 2>/dev/null | grep -q "$plugin_name"
-}
-
-# 安装 DNS 插件（带健壮性检查）
-install_dns_plugin() {
-    local plugin_type="$1"
-    local package_name
-    local import_name
-    
-    case "$plugin_type" in
-        aliyun)
-            package_name="certbot-dns-aliyun"
-            import_name="certbot_dns_aliyun"
-            ;;
-        cloudflare)
-            package_name="certbot-dns-cloudflare"
-            import_name="certbot_dns_cloudflare"
-            ;;
-        *)
-            error_exit "未知的 DNS 插件类型: $plugin_type"
-            ;;
-    esac
-    
-    log_info "检查 $plugin_type DNS 插件..."
-    
-    # 首先检查 certbot 是否识别插件
-    if check_dns_plugin "dns-$plugin_type"; then
-        log_info "✓ $plugin_type DNS 插件已安装并可用"
-        return 0
-    fi
-    
-    # 尝试安装
-    log_info "$plugin_type DNS 插件未安装，正在安装..."
-    
-    if ! install_python_package "$package_name"; then
-        error_exit "$package_name 安装失败"
-    fi
-    
-    # 验证安装
-    sleep 2
-    if ! check_dns_plugin "dns-$plugin_type"; then
-        # 尝试重新加载 certbot 插件
-        log_info "重新加载 certbot 插件..."
-        if ! certbot plugins 2>/dev/null | grep -q "dns-$plugin_type"; then
-            error_exit "$plugin_type DNS 插件安装后仍不可用"
-        fi
-    fi
-    
-    log_info "✓ $plugin_type DNS 插件安装成功"
 }
 
 print_line() {
