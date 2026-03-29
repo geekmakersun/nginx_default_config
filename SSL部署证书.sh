@@ -676,6 +676,9 @@ request_cert() {
     log_info "开始申请证书: $description"
     log_info "命令: $certbot_cmd"
     
+    # 确保工作目录存在（避免 FileNotFoundError: [Errno 2] No such file or directory）
+    cd /tmp || cd /root || cd /
+    
     local attempt=1
     local max_attempts=2
     
