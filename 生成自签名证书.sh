@@ -152,9 +152,16 @@ update_nginx_config() {
         cp "$config_file" "${config_file}.backup.$(date +%Y%m%d_%H%M%S)"
         
         # 读取原配置内容
-        local root_path="/var/www/$domain"
+        local root_path
+        local server_names
         local has_php=false
         local has_static_cache=false
+        
+        # 从原配置中提取 server_name（保留多个域名）
+        server_names=$(grep -oP '^\s*server_name\s+[^;]+;' "$config_file" 2>/dev/null | head -1 | sed 's/^\s*server_name\s*//;s/;$//' || echo "$domain")
+        
+        # 从原配置中提取 root 路径
+        root_path=$(grep -oP '^\s*root\s+[^;]+;' "$config_file" 2>/dev/null | head -1 | sed 's/^\s*root\s*//;s/;$//' || echo "/var/www/$domain")
         
         # 检测原配置中的设置
         if grep -q "PHP" "$config_file" 2>/dev/null; then
@@ -164,8 +171,11 @@ update_nginx_config() {
             has_static_cache=true
         fi
         
+        log_info "从原配置中提取: server_name = $server_names"
+        log_info "从原配置中提取: root = $root_path"
+        
         # 重新生成完整配置
-        generate_full_nginx_config "$domain" "$cert_path" "$key_path" "$root_path" "$has_php" "$has_static_cache" > "$config_file"
+        generate_full_nginx_config "$domain" "$cert_path" "$key_path" "$root_path" "$server_names" "$has_php" "$has_static_cache" > "$config_file"
         log_info "✓ HTTPS配置已添加到: $config_file"
     fi
     
@@ -251,14 +261,15 @@ generate_full_nginx_config() {
     local cert_path="$2"
     local key_path="$3"
     local root_path="$4"
-    local has_php="$5"
-    local has_static_cache="$6"
+    local server_names="$5"
+    local has_php="$6"
+    local has_static_cache="$7"
     
     cat << EOF
 server {
     listen 80;
     listen [::]:80;
-    server_name $domain;
+    server_name $server_names;
 
     # HTTP 重定向到 HTTPS
     return 301 https://\$server_name\$request_uri;
@@ -268,7 +279,7 @@ server {
     listen 443 ssl;
     listen [::]:443 ssl;
     http2 on;
-    server_name $domain;
+    server_name $server_names;
 
     root $root_path;
     index index.php index.html index.htm;
