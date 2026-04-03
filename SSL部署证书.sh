@@ -102,6 +102,16 @@ check_command() {
     command -v "$1" &> /dev/null
 }
 
+# 获取不带www的域名（如果当前域名带www）
+get_non_www_domain() {
+    local domain="$1"
+    if [[ "$domain" == www.* ]]; then
+        echo "${domain#www.}"
+    else
+        echo ""
+    fi
+}
+
 # 安装DNS插件
 install_dns_plugin() {
     local plugin_type="$1"
@@ -714,7 +724,11 @@ deploy_cert() {
     
     local actual_cert_path="$CERTBOT_ORIG_BASE/$domain"
     if [ ! -d "$actual_cert_path" ]; then
-        error_exit "无法找到申请到的证书目录: $actual_cert_path"
+        actual_cert_path=$(ls -d "$CERTBOT_ORIG_BASE/${domain}-"* 2>/dev/null | sort -V | tail -1)
+        if [ -z "$actual_cert_path" ] || [ ! -d "$actual_cert_path" ]; then
+            error_exit "无法找到申请到的证书目录: $CERTBOT_ORIG_BASE/$domain 或 $CERTBOT_ORIG_BASE/${domain}-*"
+        fi
+        log_info "找到证书目录: $actual_cert_path"
     fi
     
     # 查找最新的证书文件（按数字后缀）
@@ -1029,12 +1043,19 @@ main() {
         # 安装并验证 DNS 插件
         install_dns_plugin "aliyun"
         
+        # 获取不带www的域名（如果当前域名带www）
+        NON_WWW_DOMAIN=$(get_non_www_domain "$DOMAIN")
+        
         # 构建命令
         CERTBOT_CMD="sudo certbot certonly --authenticator dns-aliyun"
         CERTBOT_CMD="$CERTBOT_CMD --dns-aliyun-credentials $ALIYUN_AK_FILE"
         CERTBOT_CMD="$CERTBOT_CMD --dns-aliyun-propagation-seconds 60"
         CERTBOT_CMD="$CERTBOT_CMD --agree-tos -m sunbingchen@13aq.com"
         CERTBOT_CMD="$CERTBOT_CMD --no-eff-email --force-renewal -d $DOMAIN"
+        if [ -n "$NON_WWW_DOMAIN" ]; then
+            CERTBOT_CMD="$CERTBOT_CMD -d $NON_WWW_DOMAIN"
+            log_info "同时申请不带www的证书: $NON_WWW_DOMAIN"
+        fi
         
         # 记录尝试
         record_attempt "$DOMAIN"
@@ -1047,11 +1068,18 @@ main() {
         
         install_dns_plugin "cloudflare"
         
+        # 获取不带www的域名（如果当前域名带www）
+        NON_WWW_DOMAIN=$(get_non_www_domain "$DOMAIN")
+        
         CERTBOT_CMD="sudo certbot certonly --authenticator dns-cloudflare"
         CERTBOT_CMD="$CERTBOT_CMD --dns-cloudflare-credentials $CLOUDFLARE_CONF_FILE"
         CERTBOT_CMD="$CERTBOT_CMD --dns-cloudflare-propagation-seconds 60"
         CERTBOT_CMD="$CERTBOT_CMD --agree-tos -m sunbingchen@13aq.com"
         CERTBOT_CMD="$CERTBOT_CMD --no-eff-email --force-renewal -d $DOMAIN"
+        if [ -n "$NON_WWW_DOMAIN" ]; then
+            CERTBOT_CMD="$CERTBOT_CMD -d $NON_WWW_DOMAIN"
+            log_info "同时申请不带www的证书: $NON_WWW_DOMAIN"
+        fi
         
         # 记录尝试
         record_attempt "$DOMAIN"
@@ -1065,9 +1093,16 @@ main() {
         sudo nginx -s stop 2>/dev/null || sudo systemctl stop nginx 2>/dev/null || true
         sleep 2
         
+        # 获取不带www的域名（如果当前域名带www）
+        NON_WWW_DOMAIN=$(get_non_www_domain "$DOMAIN")
+        
         CERTBOT_CMD="sudo certbot certonly --nginx"
         CERTBOT_CMD="$CERTBOT_CMD --agree-tos -m sunbingchen@13aq.com"
         CERTBOT_CMD="$CERTBOT_CMD --no-eff-email -d $DOMAIN"
+        if [ -n "$NON_WWW_DOMAIN" ]; then
+            CERTBOT_CMD="$CERTBOT_CMD -d $NON_WWW_DOMAIN"
+            log_info "同时申请不带www的证书: $NON_WWW_DOMAIN"
+        fi
         
         # 记录尝试
         record_attempt "$DOMAIN"
