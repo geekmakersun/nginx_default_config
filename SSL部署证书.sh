@@ -873,6 +873,12 @@ server {
     listen [::]:80;
     server_name $domain;
 
+    # Let's Encrypt 证书续期验证路径（必须放行，否则续期会失败）
+    location /.well-known/ {
+        root /var/www/$domain;
+        allow all;
+    }
+
     # HTTP 重定向到 HTTPS
     return 301 https://\$server_name\$request_uri;
 }
@@ -926,6 +932,12 @@ server {
     listen 80;
     listen [::]:80;
     server_name $server_names;
+
+    # Let's Encrypt 证书续期验证路径（必须放行，否则续期会失败）
+    location /.well-known/ {
+        root /var/www/$domain;
+        allow all;
+    }
 
     # HTTP 重定向到 HTTPS
     return 301 https://\$server_name\$request_uri;
